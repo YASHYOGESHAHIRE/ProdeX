@@ -1,0 +1,29 @@
+{
+  "name": "localhub",
+  "version": "1.0.0",
+  "main": "code1.js",
+  "type": "module",
+  "scripts": {
+    "start": "node code1.js",
+    "dev": "nodemon code1.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.2.1",
+    "bcrypt": "^5.1.1",
+    "canvas": "^2.11.2",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "ffmpeg-static": "^5.2.0",
+    "fluent-ffmpeg": "^2.1.2",
+    "groq-sdk": "^0.34.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "open": "^10.2.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LocalHub – Shop Dashboard</title>
+
+  <style>
+    :root {
+      --primary: #007bff;
+      --primary-dark: #0056b3;
+      --success: #28a745;
+      --warning: #ffc107;
+      --danger: #dc3545;
+      --neutral-50: #f8f9fa;
+      --neutral-100: #f1f3f5;
+      --neutral-200: #e9ecef;
+      --neutral-300: #dee2e6;
+      --neutral-600: #6c757d;
+      --neutral-700: #495057;
+      --neutral-900: #212529;
+      --bg-primary: #fff;
+      --shadow-md: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+      --shadow-lg: 0 0.5rem 1rem rgba(0,0,0,.175);
+      --radius: 0;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--neutral-50);
+      color: var(--neutral-900);
+      overflow: hidden;
+    }
+    .app { display: flex; height: 100vh; }
+    .sidebar {
+      width: 220px;
+      background: var(--bg-primary);
+      height: 100vh;
+      position: fixed;
+      border-right: 1px solid var(--neutral-200);
+      padding: 1.5rem 1rem;
+      box-shadow: var(--shadow-md);
+    }
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+      color: var(--neutral-900);
+    }
+    .sidebar-nav { display: flex; flex-direction: column; gap: 0.5rem; }
+    .nav-link {
+      padding: 0.75rem 1rem;
+      text-decoration: none;
+      color: var(--neutral-700);
+      border-radius: var(--radius);
+      display: block;
+      font-weight: 500;
+      transition: background 0.3s ease;
+    }
+    .nav-link:hover { background: var(--neutral-100); }
+    .nav-link.active {
+      background: var(--primary);
+      color: white;
+    }
+    .nav-link.danger { color: var(--danger); }
+    .nav-link.danger:hover {
+      background: var(--neutral-100);
+      color: var(--danger);
+    }
+    .main {
+      margin-left: 220px;
+      width: calc(100% - 220px);
+      overflow-y: auto;
+      min-height: 100vh;
+    }
+    .content { padding: 2rem; max-width: 1400px; margin: auto; }
+
+    .btn {
+      padding: .75rem 1.5rem;
+      border: none;
+      border-radius: var(--radius);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      transition: all .3s ease;
+      font-size: .95rem;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: var(--neutral-100); color: var(--neutral-900); }
+    .btn-secondary:hover { background: var(--neutral-200); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #c82333; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: var(--bg-primary);
+      padding: 1.5rem 2rem;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      border-left: 4px solid var(--primary);
+    }
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: .25rem;
+    }
+    .stat-label {
+      color: var(--neutral-600);
+      font-size: .95rem;
+      font-weight: 500;
+    }
+
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .scanner-card {
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+      border-left: 4px solid var(--success);
+    }
+    .scanner-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+      color: var(--neutral-900);
+    }
+    .scanner-card p {
+      color: var(--neutral-600);
+      margin-bottom: 1rem;
+    }
+    .video-upload {
+      border: 2px dashed var(--neutral-300);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      background: var(--neutral-50);
+    }
+    .video-upload:hover,
+    .video-upload.dragover { border-color: var(--success); }
+    .video-upload input { display: none; }
+    .video-upload label {
+      cursor: pointer;
+      color: var(--neutral-600);
+      font-size: 0.95rem;
+    }
+
+    .manual-form {
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 2rem;
+      border-left: 4px solid var(--primary);
+    }
+    .manual-form h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label {
+      font-weight: 600;
+      margin-bottom: .25rem;
+      color: var(--neutral-700);
+    }
+    .form-group input {
+      padding: .75rem;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius);
+      font-size: 1rem;
+      transition: border-color .3s;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .inventory-card {
+      background: var(--bg-primary);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border-left: 4px solid var(--warning);
+    }
+    .inventory-header {
+      padding: 1rem 1.5rem;
+      background: var(--neutral-50);
+      border-bottom: 1px solid var(--neutral-200);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .inventory-header h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+    }
+    .inventory-header div { color: var(--neutral-600); }
+    .table-container { overflow-x: auto; max-height: 50vh; overflow-y: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      background: var(--neutral-100);
+      padding: 0.75rem 1.5rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--neutral-700);
+      border-bottom: 1px solid var(--neutral-200);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td {
+      padding: 0.75rem 1.5rem;
+      border-bottom: 1px solid var(--neutral-200);
+    }
+    tr:hover { background: var(--neutral-50); }
+    .price-input,
+    .stock-input {
+      width: 100px;
+      padding: .5rem;
+      border: 1px solid var(--neutral-300);
+      border-radius: var(--radius);
+      font-size: .9rem;
+    }
+
+    @media (max-width: 768px) {
+      .app { flex-direction: column; }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        padding: 1rem;
+        border-right: none;
+        border-bottom: 1px solid var(--neutral-200);
+      }
+      .sidebar-nav { flex-direction: row; gap: 1rem; overflow-x: auto; }
+      .main { margin-left: 0; width: 100%; }
+      .content { padding: 1rem; }
+      .actions-grid { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 id="shopName">Loading...</h1>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-link active">Dashboard</a>
+        <a href="/profile.html" class="nav-link">Profile</a>
+        <button class="nav-link" onclick="exportCSV()">Export CSV</button>
+        <a href="/logout" class="nav-link danger">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="content">
+        <!-- Stats -->
+        <div class="stats-grid" id="statsGrid"></div>
+<!-- INVENTORY ACTIONS -->
+<div class="actions-grid">
+  <div class="scanner-card">
+    <h2>Scan Entire Shelf</h2>
+    <p>Replace current inventory with AI-detected items</p>
+    <!-- SCAN & REPLACE -->
+    <div class="video-upload" id="fullScanZone">
+      <input type="file" id="fullScanInput" accept="video/*,image/*">
+      <label>📤 Click or drag video/image here</label>
+      <button type="button" id="fullScanBtn" class="btn btn-primary" style="margin-top:1rem;">
+        Scan & Replace
+      </button>
+    </div>
+  </div>
+
+  <div class="scanner-card">
+    <h2>Add More Items</h2>
+    <p>Add new items to existing inventory</p>
+    <!-- ADD MORE ITEMS -->
+    <div class="video-upload" id="addMoreZone">
+      <input type="file" id="addMoreInput" accept="video/*,image/*">
+      <label>📤 Click or drag video/image here</label>
+      <button type="button" id="addMoreBtn" class="btn btn-primary" style="margin-top:1rem;">
+        Add Items
+      </button>
+    </div>
+  </div>
+</div>
+
+        <!-- Manual Add -->
+        <div class="manual-form">
+          <h2>Add Product Manually</h2>
+          <form id="manualForm" class="form-grid">
+            <div class="form-group"><label>Product Name</label>
+              <input type="text" id="manualName" placeholder="e.g., iPhone 15" required></div>
+            <div class="form-group"><label>Price</label>
+              <input type="text" id="manualPrice" placeholder="₹499"></div>
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary">Add Product</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Inventory -->
+        <div class="inventory-card">
+          <div class="inventory-header">
+            <h2>Your Inventory</h2>
+            <div id="inventoryCount">0 items</div>
+          </div>
+          <div class="table-container">
+            <table id="inventoryTable">
+              <thead>
+                <tr><th>Product</th><th>Price</th><th>Stock</th><th>Added</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="inventoryBody">
+                <tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--neutral-600);">
+                  Loading inventory...
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      let inventory = [];
+  
+      /* ---------- TOAST ALERT ---------- */
+      function showAlert(msg, isError = true) {
+        const el = document.createElement('div');
+        el.textContent = msg;
+        el.style.position = 'fixed';
+        el.style.top = '1rem';
+        el.style.right = '1rem';
+        el.style.padding = '1rem 1.5rem';
+        el.style.borderRadius = '0.5rem';
+        el.style.background = isError ? 'rgba(220,53,69,0.95)' : 'rgba(40,167,69,0.95)';
+        el.style.color = '#fff';
+        el.style.zIndex = '10000';
+        el.style.boxShadow = '0 4px 12px rgba(0,0,0,.15)';
+        el.style.fontSize = '0.95rem';
+        el.style.fontWeight = '500';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3000);
+      }
+  
+      /* ---------- INITIAL LOAD ---------- */
+      async function init() {
+        try {
+          const resp = await fetch('/api/shop');
+          if (!resp.ok) throw new Error();
+          const shop = await resp.json();
+          document.getElementById('shopName').textContent = shop.shop_name;
+          await loadInventory();
+        } catch (e) {
+          window.location.href = '/login';
+        }
+      }
+  
+      /* ---------- INVENTORY ---------- */
+      async function loadInventory() {
+        const resp = await fetch('/api/inventory');
+        inventory = await resp.json();
+        renderInventory();
+        renderStats();
+      }
+  
+      function renderInventory() {
+        const tbody = document.getElementById('inventoryBody');
+        const countEl = document.getElementById('inventoryCount');
+  
+        if (inventory.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:3rem;color:var(--neutral-600);">
+            No products yet. Use the scanner above!
+          </td></tr>`;
+          countEl.textContent = '0 items';
+          return;
+        }
+  
+        tbody.innerHTML = inventory.map(item => `
+          <tr>
+            <td style="font-weight:600;">${item.product_name}</td>
+            <td><input class="price-input" value="${item.price||''}"
+                       onchange="updateItem(${item.id},'price',this.value)" placeholder="₹0"></td>
+            <td><input class="stock-input" value="${item.stock||'In Stock'}"
+                       onchange="updateItem(${item.id},'stock',this.value)"
+                       list="stockOptions" style="width:120px;">
+              <datalist id="stockOptions">
+                <option>In Stock</option><option>Low Stock</option><option>Out of Stock</option>
+              </datalist>
+            </td>
+            <td style="color:var(--neutral-600);font-size:.9rem;">
+              ${new Date(item.created_at).toLocaleDateString()}
+            </td>
+            <td><button class="btn btn-danger" style="padding:.5rem 1rem;font-size:.8rem;"
+                       onclick="deleteItem(${item.id})">Delete</button></td>
+          </tr>
+        `).join('');
+        countEl.textContent = `${inventory.length} items`;
+      }
+  
+      function renderStats() {
+        const lowStock = inventory.filter(i => 
+          i.stock?.toLowerCase().includes('low') || i.stock?.toLowerCase().includes('out')
+        ).length;
+        const totalValue = inventory.reduce((s,i) => 
+          s + parseFloat(i.price?.replace(/[₹,]/g,'')||0), 0);
+  
+        document.getElementById('statsGrid').innerHTML = `
+          <div class="stat-card"><div class="stat-number">${inventory.length}</div>
+            <div class="stat-label">Total Products</div></div>
+          <div class="stat-card"><div class="stat-number" style="color:var(--warning);">${lowStock}</div>
+            <div class="stat-label">Low/Out of Stock</div></div>
+          <div class="stat-card"><div class="stat-number" style="color:var(--success);">
+            ₹${totalValue.toLocaleString()}</div>
+            <div class="stat-label">Est. Inventory Value</div></div>
+        `;
+      }
+  
+      async function updateItem(id, field, value) {
+        await fetch(`/api/inventory/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [field]: value })
+        });
+        await loadInventory();
+      }
+  
+      async function deleteItem(id) {
+        if (!confirm('Delete this product?')) return;
+        await fetch(`/api/inventory/${id}`, { method: 'DELETE' });
+        await loadInventory();
+      }
+  
+      /* ---------- DRAG & DROP + FILE UPLOAD ---------- */
+      function setupDropZone(formId, mode) {
+        const form = document.getElementById(formId);
+        const input = form.querySelector('input[type=file]');
+        const dropZone = form.parentElement;
+  
+        // Click to open file picker
+        dropZone.addEventListener('click', () => input.click());
+  
+        // Drag & drop
+        ['dragover', 'dragenter'].forEach(e => {
+          dropZone.addEventListener(e, () => dropZone.classList.add('dragover'));
+        });
+        ['dragleave', 'drop'].forEach(e => {
+          dropZone.addEventListener(e, () => dropZone.classList.remove('dragover'));
+        });
+        dropZone.addEventListener('drop', e => {
+          e.preventDefault();
+          if (e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+          }
+        });
+  
+        // Submit
+        form.addEventListener('submit', async e => {
+          e.preventDefault();
+          const file = input.files[0];
+          if (!file) {
+            showAlert('Please select an image or video first.');
+            return;
+          }
+          if (mode === 'replace' && !confirm('This will REPLACE all items. Continue?')) return;
+  
+          const fd = new FormData();
+          fd.append('media', file);
+          fd.append('mode', mode);
+  
+          const btn = form.querySelector('button');
+          btn.disabled = true;
+          btn.textContent = 'Processing…';
+  
+          try {
+            const res = await fetch('/analyze', { method: 'POST', body: fd });
+            if (res.ok) {
+              showAlert(mode === 'replace' ? 'Inventory replaced!' : 'Items added!', false);
+              await loadInventory();
+            } else {
+              showAlert('Error: ' + await res.text());
+            }
+          } catch (e) {
+            showAlert('Upload failed');
+          } finally {
+            btn.disabled = false;
+            btn.textContent = mode === 'replace' ? 'Scan & Replace' : 'Add Items';
+          }
+        });
+      }
+  
+      // Setup both forms
+      setupDropZone('fullScanForm', 'replace');
+      setupDropZone('addMoreForm', 'append');
+  
+      /* ---------- MANUAL ADD ---------- */
+      document.getElementById('manualForm').addEventListener('submit', async e => {
+        e.preventDefault();
+        const name = document.getElementById('manualName').value.trim();
+        const price = document.getElementById('manualPrice').value.trim();
+  
+        if (!name) {
+          showAlert('Product name is required');
+          return;
+        }
+  
+        await fetch('/api/inventory', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product_name: name, price: price || null })
+        });
+  
+        e.target.reset();
+        await loadInventory();
+        showAlert('Product added!', false);
+      });
+  
+      /* ---------- EXPORT CSV ---------- */
+      window.exportCSV = async function () {
+        const resp = await fetch('/api/inventory/export');
+        const csv = await resp.text();
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        a.download = `inventory_${document.getElementById('shopName').textContent}_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
+      };
+  
+      /* ---------- START ---------- */
+      init();
+    });
+  </script>

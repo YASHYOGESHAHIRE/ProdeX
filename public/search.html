@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Find products in nearby stores instantly. Real-time stock, distance, and directions."/>
+  <title>LocalHub – Find Products Nearby</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+  <!-- Tailwind CSS (Production CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#2563eb',
+            'primary-dark': '#1d4ed8',
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+          },
+        },
+      },
+    }
+  </script>
+  <link href="https://rsms.me/inter/inter.css" rel="stylesheet">
+  <style>
+    .loading-spinner {
+      border: 3px solid #f3f4f6;
+      border-top: 3px solid #2563eb;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      display: inline-block;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .map-popup-content { font-family: inherit; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- Hero Header -->
+  <header class="bg-white shadow-sm border-b border-gray-200">
+    <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-white font-bold text-lg">LH</div>
+        <h1 class="text-2xl font-bold text-gray-800">LocalHub</h1>
+      </div>
+      <p class="text-sm text-gray-500 hidden sm:block">Find products in stores near you</p>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+
+    <!-- Search Section -->
+    <div class="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-gray-200">
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          id="query"
+          placeholder="Search for iPhone 15, milk, batteries..."
+          class="flex-1 px-5 py-3 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+          autocomplete="off"
+        />
+        <button
+          id="searchBtn"
+          class="px-8 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-xl transition flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          <span id="searchText">Search</span>
+        </button>
+      </div>
+
+      <!-- Location Status -->
+      <p id="locStatus" class="mt-4 text-sm text-gray-600 flex items-center">
+        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+        <span>Getting your location…</span>
+      </p>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="space-y-4"></div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12">
+      <div class="bg-gray-100 w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center">
+        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+      </div>
+      <p class="text-gray-600 text-lg">Search for a product to see nearby stores</p>
+    </div>
+
+    <!-- Map -->
+    <div id="map" class="h-96 rounded-2xl overflow-hidden shadow-lg mt-8 border border-gray-200" style="display: none;"></div>
+  </main>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    let map, markerLayer;
+    let userLoc = null;
+    const statusEl = document.getElementById('locStatus');
+    const resultsEl = document.getElementById('results');
+    const mapEl = document.getElementById('map');
+    const emptyState = document.getElementById('emptyState');
+    const searchBtn = document.getElementById('searchBtn');
+    const searchText = document.getElementById('searchText');
+
+    // Get Location
+    function getLocation() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) return reject('Geolocation not supported');
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => reject('Location access denied')
+        );
+      });
+    }
+
+    // Search API
+    async function performSearch(query, lat, lng) {
+      const params = new URLSearchParams({ product: query });
+      if (lat && lng) {
+        params.append('lat', lat);
+        params.append('lng', lng);
+      }
+      const resp = await fetch(`/api/search?${params}`);
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    }
+
+    // Render Results
+    function renderResults(shops) {
+      if (!shops || shops.length === 0) {
+        resultsEl.innerHTML = `
+          <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+            <p class="text-yellow-800 font-medium">No stores found</p>
+            <p class="text-yellow-600 text-sm mt-1">Try a different product or check spelling.</p>
+          </div>`;
+        hideMap();
+        return;
+      }
+
+      resultsEl.innerHTML = shops.map(s => `
+        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-200 hover:shadow-md transition">
+          <div class="flex justify-between items-start">
+            <div class="flex-1">
+              <h3 class="text-lg font-semibold text-gray-900">${escapeHtml(s.shop_name)}</h3>
+              <p class="text-sm text-gray-500 mt-1">${escapeHtml(s.product_name)} – <strong>${escapeHtml(s.stock)}</strong></p>
+              ${s.distance !== undefined ? `<p class="text-sm text-primary font-medium mt-2">≈ ${s.distance.toFixed(1)} km away</p>` : ''}
+            </div>
+            <button
+              onclick="getDirections(${s.lat}, ${s.lng})"
+              ${!userLoc ? 'disabled' : ''}
+              class="ml-4 px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-lg transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              Directions
+            </button>
+          </div>
+        </div>
+      `).join('');
+
+      initMap(shops);
+    }
+
+    function hideMap() {
+      mapEl.style.display = 'none';
+      if (map) map.remove();
+      map = null;
+    }
+
+    function initMap(shops) {
+      mapEl.style.display = 'block';
+      if (!map) {
+        map = L.map('map').setView([shops[0].lat, shops[0].lng], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+        markerLayer = L.layerGroup().addTo(map);
+      } else {
+        markerLayer.clearLayers();
+      }
+
+      shops.forEach(s => {
+        const marker = L.marker([s.lat, s.lng])
+          .addTo(markerLayer)
+          .bindPopup(`
+            <div class="map-popup-content p-1">
+              <b class="text-base">${escapeHtml(s.shop_name)}</b><br>
+              <span class="text-sm">${escapeHtml(s.product_name)}</span><br>
+              <span class="text-sm font-medium">${escapeHtml(s.stock)}</span>
+            </div>
+          `, { autoClose: false });
+
+        marker.on('click', () => getDirections(s.lat, s.lng));
+      });
+
+      // Fit bounds to all markers
+      const bounds = L.latLngBounds(shops.map(s => [s.lat, s.lng]));
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+
+    // Directions
+    function getDirections(shopLat, shopLng) {
+      if (!userLoc) return alert('Your location is needed for directions.');
+      const url = `https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${shopLat},${shopLng}&travelmode=driving`;
+      window.open(url, '_blank');
+    }
+
+    // Escape HTML
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Main Init
+    async function init() {
+      try {
+        userLoc = await getLocation();
+        statusEl.innerHTML = `<svg class="w-4 h-4 mr-1 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg><span class="text-green-700 font-medium">Location ready</span>`;
+      } catch (e) {
+        statusEl.innerHTML = `<svg class="w-4 h-4 mr-1 text-orange-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><span class="text-orange-700">Location unavailable – distances limited</span>`;
+      }
+
+      // Search Handler
+      searchBtn.onclick = async () => {
+        const query = document.getElementById('query').value.trim();
+        if (!query) return;
+
+        searchBtn.disabled = true;
+        searchText.innerHTML = `<span class="loading-spinner"></span> Searching...`;
+        emptyState.classList.add('hidden');
+
+        try {
+          const data = await performSearch(query, userLoc?.lat, userLoc?.lng);
+          renderResults(data);
+        } catch (err) {
+          resultsEl.innerHTML = `
+            <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+              <p class="text-red-800 font-medium">Search failed</p>
+              <p class="text-red-600 text-sm mt-1">${escapeHtml(err.message)}</p>
+            </div>`;
+          hideMap();
+        } finally {
+          searchBtn.disabled = false;
+          searchText.textContent = 'Search';
+        }
+      };
+
+      // Show empty state initially
+      emptyState.classList.remove('hidden');
+    }
+
+    // Start
+    init();
+  </script>
+</body>
+</html>

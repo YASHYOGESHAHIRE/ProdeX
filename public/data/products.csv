@@ -1,0 +1,4 @@
+id,name,price,emoji,shops,lat,lng
+1,"iPhone 15 Pro","$999","📱","TechHub Store|150|4.8|342|In Stock;Electronics Plus|280|4.5|215|In Stock;Digital World|450|4.3|128|Low Stock",37.7749,-122.4194
+2,"Premium Coffee Beans","$12.99","☕","Brew Haven|200|4.9|567|In Stock;Local Roastery|320|4.7|423|In Stock;Cafe Supply Co|580|4.2|89|In Stock",37.7749,-122.4194
+3,"Running Shoes Pro","$129.99","👟","SportZone|180|4.6|298|In Stock;Foot Comfort Store|350|4.4|176|In Stock;Athletic Gear Hub|520|4.1|92|Low Stock",37.7749,-122.4194

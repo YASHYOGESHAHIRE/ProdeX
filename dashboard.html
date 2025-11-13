@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LocalHub – Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        :root{--primary:#2563eb;--accent:#f59e0b;--bg:#fff;--radius:0.5rem;}
+        body{font-family:system-ui,sans-serif;background:#f9fafb;padding:2rem;}
+        .container{max-width:1100px;margin:auto;background:var(--bg);padding:2rem;border-radius:var(--radius);box-shadow:0 4px 12px rgba(0,0,0,.1);}
+        h1{margin-bottom:1rem;}
+        table{width:100%;border-collapse:collapse;margin-top:1.5rem;}
+        th,td{border:1px solid #e5e7eb;padding:.75rem;text-align:left;}
+        th{background:#f3f4f6;}
+        .btn{padding:.4rem .8rem;border:none;border-radius:var(--radius);cursor:pointer;font-weight:600;margin:0 .2rem;}
+        .btn-primary{background:var(--primary);color:#fff;}
+        .btn-danger{background:#ef4444;color:#fff;}
+        .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;}
+        input,select,textarea{width:100%;padding:.5rem;border:1px solid #d1d5db;border-radius:var(--radius);}
+        .shop-row{display:grid;grid-template-columns:1fr 80px 80px 80px 100px 40px;gap:.5rem;align-items:center;margin-bottom:.5rem;}
+        .remove-shop{color:#ef4444;cursor:pointer;font-weight:bold;}
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>LocalHub Dashboard</h1>
+
+    <!-- Form -->
+    <div class="form-grid">
+        <input type="hidden" id="editId">
+        <div><label>Name</label><input id="name" required></div>
+        <div><label>Price</label><input id="price" placeholder="$99.99" required></div>
+        <div><label>Emoji</label><input id="emoji" maxlength="2"></div>
+        <div><label>Image</label><input type="file" id="image" accept="image/*"></div>
+        <div><label>Latitude</label><input id="lat" type="number" step="any" required></div>
+        <div><label>Longitude</label><input id="lng" type="number" step="any" required></div>
+    </div>
+
+    <h3>Shops</h3>
+    <div id="shopsContainer"></div>
+    <button class="btn btn-primary" id="addShopBtn">+ Add Shop</button>
+
+    <div style="margin-top:1rem;">
+        <button class="btn btn-primary" id="saveBtn">Save Product</button>
+        <button class="btn" id="cancelBtn">Cancel</button>
+    </div>
+
+    <hr style="margin:2rem 0;">
+
+    <!-- Table -->
+    <table id="productsTable">
+        <thead>
+            <tr><th>ID</th><th>Name</th><th>Price</th><th>Shops</th><th>Location</th><th>Image</th><th>Actions</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<script>
+
+/* ---------- 1. File System Handles ---------- */
+let csvHandle = null;          // FileSystemFileHandle for products.csv
+const CSV_HANDLE_KEY = 'localhub_csv_handle';
+
+/* Try to restore previous handle (persisted via File System Access API) */
+async function restoreCsvHandle() {
+    if ('showOpenFilePicker' in window) {
+        const persisted = localStorage.getItem(CSV_HANDLE_KEY);
+        if (persisted) {
+            try {
+                const handles = await window.showOpenFilePicker({multiple: false, _preferPolyfill: false});
+                // The API does not allow direct restoration, but we ask the user to re-select the same file.
+                // We'll just open it again – the user will see the same file.
+            } catch (_) {}
+        }
+    }
+}
+
+/* Ask user to pick the CSV (only once) */
+async function pickCsvFile() {
+    if (!('showOpenFilePicker' in window)) {
+        alert('Your browser does not support File System Access API. Use Chrome/Edge ≥ 86.');
+        return null;
+    }
+    try {
+        const [handle] = await window.showOpenFilePicker({
+            types: [{description: 'CSV files', accept: {'text/csv': ['.csv']}}]
+        });
+        csvHandle = handle;
+        // Persist the handle ID (works only in the same origin & same session type)
+        localStorage.setItem(CSV_HANDLE_KEY, 'selected');
+        return handle;
+    } catch (e) {
+        console.warn('File picker cancelled', e);
+        return null;
+    }
+}
+
+/* ---------- 2. Load CSV from handle ---------- */
+async function loadCSV() {
+    if (!csvHandle) {
+        const h = await pickCsvFile();
+        if (!h) return;
+    }
+    const file = await csvHandle.getFile();
+    const txt = await file.text();
+    const parsed = Papa.parse(txt, {header:true, skipEmptyLines:true});
+    products = parsed.data.map(p=>({
+        id: +p.id,
+        name: p.name,
+        price: p.price,
+        emoji: p.emoji || '',
+        shops: parseShops(p.shops),
+        lat: +p.lat,
+        lng: +p.lng
+    }));
+    renderTable();
+}
+
+/* ---------- 3. Save CSV back to the SAME file ---------- */
+async function saveCSV() {
+    if (!csvHandle) throw new Error('No CSV file selected');
+    const csvContent = Papa.unparse(products.map(p=>({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        emoji: p.emoji,
+        shops: shopsToString(p.shops),
+        lat: p.lat,
+        lng: p.lng
+    })));
+    const writable = await csvHandle.createWritable();
+    await writable.write(csvContent);
+    await writable.close();
+}
+
+/* ---------- 4. Helper parsers ---------- */
+function parseShops(str){
+    if (!str) return [];
+    return str.split(';').map(s=>{
+        const a = s.split('|');
+        return {name:a[0], distance:+a[1], rating:+a[2], reviews:+a[3], stock:a[4]};
+    });
+}
+function shopsToString(shops){
+    return shops.map(s=>`${s.name}|${s.distance}|${s.rating}|${s.reviews}|${s.stock}`).join(';');
+}
+
+/* ---------- 5. Image handling (same folder) ---------- */
+let imageDirHandle = null;   // Directory handle for assets/
+async function getImageDir() {
+    if (imageDirHandle) return imageDirHandle;
+    if (!('showDirectoryPicker' in window)) {
+        alert('Directory picker not supported – images will not be saved.');
+        return null;
+    }
+    imageDirHandle = await window.showDirectoryPicker();
+    return imageDirHandle;
+}
+async function saveImage(id, file) {
+    const dir = await getImageDir();
+    if (!dir) return;
+    const imgHandle = await dir.getFileHandle(`${id}.jpg`, {create:true});
+    const writable = await imgHandle.createWritable();
+    await writable.write(await file.arrayBuffer());
+    await writable.close();
+}
+
+/* ---------- 6. UI – same as before, just wired to new functions ---------- */
+let products = [];
+let editingId = null;
+
+const shopsContainer = document.getElementById('shopsContainer');
+function addShopRow(shop={name:'',distance:0,rating:0,reviews:0,stock:'In Stock'}) {
+    const div = document.createElement('div');
+    div.className='shop-row';
+    div.innerHTML = `
+        <input value="${shop.name}" placeholder="Shop name" required>
+        <input type="number" value="${shop.distance}" placeholder="m" required>
+        <input type="number" step="0.1" value="${shop.rating}" placeholder="Rating" required>
+        <input type="number" value="${shop.reviews}" placeholder="Reviews" required>
+        <select>
+            <option ${shop.stock==='In Stock'?'selected':''}>In Stock</option>
+            <option ${shop.stock==='Low Stock'?'selected':''}>Low Stock</option>
+        </select>
+        <span class="remove-shop">×</span>
+    `;
+    div.querySelector('.remove-shop').onclick = () => div.remove();
+    shopsContainer.appendChild(div);
+}
+document.getElementById('addShopBtn').onclick = () => addShopRow();
+
+/* Save product */
+document.getElementById('saveBtn').onclick = async () => {
+    const rows = [...shopsContainer.querySelectorAll('.shop-row')];
+    if (!rows.length) return alert('Add at least one shop');
+
+    const newShops = rows.map(r => {
+        const inputs = r.querySelectorAll('input,select');
+        return {
+            name: inputs[0].value.trim(),
+            distance: +inputs[1].value,
+            rating: +inputs[2].value,
+            reviews: +inputs[3].value,
+            stock: inputs[4].value
+        };
+    });
+
+    const product = {
+        id: editingId || (products.length ? Math.max(...products.map(p=>p.id)) + 1 : 1),
+        name: document.getElementById('name').value.trim(),
+        price: document.getElementById('price').value.trim(),
+        emoji: document.getElementById('emoji').value.trim(),
+        shops: newShops,
+        lat: +document.getElementById('lat').value,
+        lng: +document.getElementById('lng').value
+    };
+
+    // ---- Image ----
+    const imgFile = document.getElementById('image').files[0];
+    if (imgFile) await saveImage(product.id, imgFile);
+
+    // ---- Update in-memory array ----
+    if (editingId) {
+        const idx = products.findIndex(p=>p.id===editingId);
+        products[idx] = product;
+    } else {
+        products.push(product);
+    }
+
+    // ---- Persist to SAME CSV file ----
+    await saveCSV();
+    await loadCSV();      // refresh UI
+    resetForm();
+};
+
+/* Edit */
+function editProduct(p) {
+    editingId = p.id;
+    document.getElementById('name').value = p.name;
+    document.getElementById('price').value = p.price;
+    document.getElementById('emoji').value = p.emoji;
+    document.getElementById('lat').value = p.lat;
+    document.getElementById('lng').value = p.lng;
+    shopsContainer.innerHTML = '';
+    p.shops.forEach(s=>addShopRow(s));
+}
+
+/* Delete */
+async function deleteProduct(id) {
+    if (!confirm('Delete this product?')) return;
+    products = products.filter(p=>p.id!==id);
+    await saveCSV();
+    await loadCSV();
+}
+
+/* Cancel */
+document.getElementById('cancelBtn').onclick = resetForm;
+function resetForm() {
+    editingId = null;
+    ['name','price','emoji','lat','lng','image'].forEach(id=>document.getElementById(id).value='');
+    shopsContainer.innerHTML = '';
+    addShopRow();
+}
+
+/* Render table */
+function renderTable() {
+    const tbody = document.querySelector('#productsTable tbody');
+    tbody.innerHTML = products.map(p=>`
+        <tr>
+            <td>${p.id}</td>
+            <td>${p.name}</td>
+            <td>${p.price}</td>
+            <td>${p.shops.map(s=>`${s.name} (${s.distance}m)`).join('<br>')}</td>
+            <td>${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</td>
+            <td><img src="assets/${p.id}.jpg" width="40" onerror="this.style.display='none'"></td>
+            <td>
+                <button class="btn btn-primary" onclick="editProduct(products.find(x=>x.id===${p.id}))">Edit</button>
+                <button class="btn btn-danger" onclick="deleteProduct(${p.id})">Del</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/* ---------- 7. Init ---------- */
+(async () => {
+    await restoreCsvHandle();   // tries to re-open last file (user will be prompted again)
+    await loadCSV();            // will ask to pick if none
+    resetForm();
+})();
+</script>
+</body>
+</html>

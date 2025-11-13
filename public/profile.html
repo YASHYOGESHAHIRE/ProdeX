@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile – LocalHub</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    :root { --primary: #2563eb; --success: #10b981; --danger: #ef4444; --neutral-100: #f3f4f6; --neutral-200: #e5e7eb; --neutral-600: #4b5563; --radius: 0.75rem; --shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: system-ui, sans-serif; background: #f8fafc; color: #1f2937; padding: 2rem; }
+    .card { background: white; border-radius: var(--radius); box-shadow: var(--shadow); padding: 2rem; max-width: 600px; margin: 2rem auto; }
+    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; color: var(--primary); }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--neutral-600); }
+    input, button { width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid var(--neutral-200); font-size: 1rem; }
+    input:focus { outline: none; border-color: var(--primary); }
+    button { background: var(--primary); color: white; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+    button:hover { background: #1d4ed8; }
+    #map { height: 250px; margin: 1rem 0; border-radius: var(--radius); }
+    .status { margin: 0.5rem 0; font-size: 0.9rem; }
+    .success { color: var(--success); }
+    .error { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Shop Profile</h1>
+    <form id="profileForm">
+      <div class="form-group">
+        <label>Shop Name</label>
+        <input type="text" id="shopName" required />
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" required />
+      </div>
+      <div class="form-group">
+        <label>New Password (leave blank to keep)</label>
+        <input type="password" id="password" placeholder="••••••••" />
+      </div>
+
+      <hr style="margin: 1.5rem 0;" />
+
+      <div class="form-group">
+        <label>Shop Location</label>
+        <button type="button" id="captureBtn" style="width:auto; padding:0.75rem 1rem;">Get Live Location</button>
+        <p class="status" id="locStatus">Click to capture GPS location</p>
+        <div id="map"></div>
+        <input type="hidden" id="lat" />
+        <input type="hidden" id="lng" />
+      </div>
+
+      <button type="submit">Save Changes</button>
+    </form>
+    <p style="margin-top:1rem;"><a href="/">Back to Dashboard</a></p>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+  let map, marker;
+  const statusEl = document.getElementById('locStatus');
+  const latInput = document.getElementById('lat');
+  const lngInput = document.getElementById('lng');
+  const captureBtn = document.getElementById('captureBtn');
+
+  // Load shop data and initialize
+  document.addEventListener('DOMContentLoaded', async () => {
+    try {
+      const resp = await fetch('/api/shop');
+      if (!resp.ok) throw new Error('Unauthorized');
+      const shop = await resp.json();
+
+      document.getElementById('shopName').value = shop.shop_name;
+      document.getElementById('email').value = shop.email || '';
+      latInput.value = shop.lat;
+      lngInput.value = shop.lng;
+
+      // Initialize map with saved location
+      initMap(parseFloat(shop.lat), parseFloat(shop.lng));
+    } catch (e) {
+      alert('Failed to load profile. Redirecting...');
+      location.href = '/login';
+    }
+  });
+
+  // Initialize or update Leaflet map
+  function initMap(lat, lng) {
+    if (!map) {
+      map = L.map('map').setView([lat, lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+    } else {
+      map.setView([lat, lng], 16);
+    }
+
+    if (marker) marker.setLatLng([lat, lng]);
+    else marker = L.marker([lat, lng]).addTo(map).bindPopup('Your Shop').openPopup();
+  }
+
+  // Capture live location
+  captureBtn.onclick = () => {
+    statusEl.textContent = 'Requesting location...';
+    statusEl.className = 'status';
+
+    if (!navigator.geolocation) {
+      statusEl.textContent = 'Geolocation not supported by your browser';
+      statusEl.className = 'error';
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        latInput.value = lat;
+        lngInput.value = lng;
+
+        statusEl.innerHTML = `Captured: <strong>${lat.toFixed(6)}, ${lng.toFixed(6)}</strong>`;
+        statusEl.className = 'success';
+
+        initMap(lat, lng); // Update map
+      },
+      (err) => {
+        let msg = 'Location access denied';
+        if (err.code === 1) msg = 'Permission denied';
+        else if (err.code === 2) msg = 'Position unavailable';
+        else if (err.code === 3) msg = 'Timeout';
+
+        statusEl.textContent = msg;
+        statusEl.className = 'error';
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
+  // Form submit
+  document.getElementById('profileForm').onsubmit = async (e) => {
+    e.preventDefault();
+
+    const data = {
+      shop_name: document.getElementById('shopName').value.trim(),
+      email: document.getElementById('email').value.trim(),
+      lat: parseFloat(latInput.value),
+      lng: parseFloat(lngInput.value),
+    };
+
+    const pwd = document.getElementById('password').value;
+    if (pwd) data.password = pwd;
+
+    try {
+      const res = await fetch('/api/shop', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (res.ok) {
+        alert('Profile updated successfully!');
+        location.href = '/';
+      } else {
+        const err = await res.text();
+        alert('Update failed: ' + err);
+      }
+    } catch (e) {
+      alert('Network error');
+    }
+  };
+</script>
+</body>
+</html>

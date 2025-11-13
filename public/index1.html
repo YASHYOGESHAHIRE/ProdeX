@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Shelf-Scanner</title>
+<style>
+/* ==== Reset & Layout ==== */
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:system-ui,sans-serif;background:#f9f9fb}
+body{display:flex}
+aside.sidebar{width:220px;background:#fff;padding:1rem;border-right:1px solid #ddd;display:flex;flex-direction:column;gap:.75rem}
+aside button{width:100%;padding:.75rem 1rem;border:none;background:#f0f0f0;text-align:left;cursor:pointer;border-radius:4px;font-weight:500}
+aside button.active,aside button:hover{background:#007bff;color:#fff}
+aside .logout{margin-top:auto;color:#d33}
+main.content{flex:1;padding:2rem;overflow:auto}
+.card{background:#fff;border-radius:8px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 6px rgba(0,0,0,.05)}
+h2{margin-bottom:.5rem;color:#222}
+.dropzone{border:2px dashed #aaa;border-radius:6px;padding:2rem;text-align:center;background:#fafafa;cursor:pointer;transition:.2s}
+.dropzone:hover,.dropzone.dragover{border-color:#007bff;background:#eef}
+.dropzone p{margin-bottom:1rem;color:#555}
+button.primary{background:#007bff;color:#fff;border:none;padding:.6rem 1.2rem;border-radius:4px;cursor:pointer;font-weight:500}
+button.primary:hover{background:#0056b3}
+.manual-form{display:flex;gap:.75rem;flex-wrap:wrap}
+.manual-form input{flex:1;min-width:150px;padding:.6rem;border:1px solid #ccc;border-radius:4px}
+table{width:100%;border-collapse:collapse;margin-top:1rem}
+th,td{padding:.75rem;text-align:left;border-bottom:1px solid #eee}
+th{background:#f4f4f4;font-weight:600}
+tr:hover{background:#fbfbfb}
+.count{float:right;font-weight:normal;color:#555}
+.loading{color:#777;font-style:italic;text-align:center;margin-top:1rem}
+.overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;z-index:999}
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <button class="active" id="dashboardBtn">Dashboard</button>
+  <button id="profileBtn">Profile</button>
+  <button id="exportBtn">Export CSV</button>
+  <button id="logoutBtn" class="logout">Logout</button>
+</aside>
+
+<main class="content">
+  <section id="scan-section">
+    <div class="card">
+      <h2>Scan Entire Shelf</h2>
+      <p>Replace current inventory with AI-detected items</p>
+      <div class="dropzone" id="scanDrop"><p>Click or drag video/image here</p><button class="primary">Scan & Replace</button></div>
+    </div>
+    <div class="card">
+      <h2>Add More Items</h2>
+      <p>Add new items to existing inventory</p>
+      <div class="dropzone" id="addDrop"><p>Click or drag video/image here</p><button class="primary">Add Items</button></div>
+    </div>
+  </section>
+
+  <section id="manual-section" class="card">
+    <h2>Add Product Manually</h2>
+    <div class="manual-form">
+      <input type="text" placeholder="Product Name e.g. iPhone 15" id="manualName">
+      <input type="number" placeholder="₹499" id="manualPrice">
+      <button class="primary" id="addManualBtn">Add Product</button>
+    </div>
+  </section>
+
+  <section id="inventory-section" class="card">
+    <h2>Your Inventory <span class="count">0 items</span></h2>
+    <table id="inventoryTable"><thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Added</th><th>Actions</th></tr></thead><tbody></tbody></table>
+    <p class="loading" id="invLoading">Loading inventory…</p>
+  </section>
+</main>
+
+<input type="file" id="scanFileInput" accept="video/*,image/*" hidden>
+<input type="file" id="addFileInput" accept="video/*,image/*" hidden>
+
+<script>
+let inventory=[];
+const tbody=document.querySelector('#inventoryTable tbody'),countSpan=document.querySelector('.count'),invLoading=document.getElementById('invLoading');
+
+function fmtDate(d){return new Date(d).toLocaleString('en-IN',{dateStyle:'short',timeStyle:'short'});}
+function updateCount(){countSpan.textContent=`${inventory.length} item${inventory.length===1?'':'s'}`;}
+function renderInventory(){
+  tbody.innerHTML='';inventory.forEach((it,idx)=>{const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${it.name}</td><td>₹${it.price}</td><td>${it.stock}</td><td>${fmtDate(it.added)}</td><td><button class="del" data-idx="${idx}">Delete</button></td>`;
+    tbody.appendChild(tr);});updateCount();}
+
+function initDropzone(dropId,fileInputId,mode){
+  const zone=document.getElementById(dropId),input=document.getElementById(fileInputId),btn=zone.querySelector('button');
+  zone.addEventListener('click',()=>input.click());btn.addEventListener('click',e=>{e.stopPropagation();input.click();});
+  ['dragover','dragenter'].forEach(ev=>zone.addEventListener(ev,e=>{e.preventDefault();zone.classList.add('dragover');}));
+  ['dragleave','dragend'].forEach(ev=>zone.addEventListener(ev,()=>{zone.classList.remove('dragover');}));
+  zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dragover');if(e.dataTransfer.files.length)input.files=e.dataTransfer.files;});
+  input.addEventListener('change',()=>{if(!input.files.length)return;uploadFile(input.files[0],mode);input.value='';});}
+
+async function uploadFile(file,mode){
+  const form=new FormData();form.append('video',file);
+  const overlay=document.createElement('div');overlay.className='overlay';overlay.textContent='Scanning… (extracting frames & AI detection)';
+  document.body.appendChild(overlay);
+  try{
+    const res=await fetch('/analyze',{method:'POST',body:form});
+    const html=await res.text();if(!res.ok)throw new Error(html);
+    const parser=new DOMParser(),doc=parser.parseFromString(html,'text/html'),pre=doc.querySelector('pre');
+    const products=pre?pre.textContent.trim().split('\n').map(l=>l.trim()).filter(Boolean):[];
+    const now=Date.now(),newItems=products.map(name=>({name,price:0,stock:1,added:now}));
+    if(mode==='replace')inventory=newItems;else inventory.push(...newItems);
+    renderInventory();
+  }catch(err){alert('Error: '+err.message);}
+  finally{document.body.removeChild(overlay);}}
+
+document.getElementById('addManualBtn').addEventListener('click',()=>{
+  const name=document.getElementById('manualName').value.trim(),price=parseFloat(document.getElementById('manualPrice').value)||0;
+  if(!name)return alert('Enter a product name');
+  inventory.push({name,price,stock:1,added:Date.now()});renderInventory();
+  document.getElementById('manualName').value='';document.getElementById('manualPrice').value='';});
+
+tbody.addEventListener('click',e=>{if(e.target.classList.contains('del')){const idx=+e.target.dataset.idx;inventory.splice(idx,1);renderInventory();}});
+
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  if(!inventory.length)return alert('Inventory is empty');
+  const header=['Product','Price','Stock','Added'],rows=inventory.map(it=>[it.name,it.price,it.stock,new Date(it.added).toISOString()]);
+  const csv=[header,...rows].map(r=>r.join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=`inventory_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);});
+
+initDropzone('scanDrop','scanFileInput','replace');
+initDropzone('addDrop','addFileInput','add');
+renderInventory();invLoading.style.display='none';
+</script>
+</body>
+</html>
