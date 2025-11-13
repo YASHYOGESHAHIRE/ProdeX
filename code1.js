@@ -40,7 +40,7 @@ const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
 // ---------- Multer (store original video) ----------
 const upload = multer({
-  dest: 'uploads/',
+  storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
   fileFilter: (req, file, cb) => {
     const allowedMimes = [
@@ -59,14 +59,11 @@ const upload = multer({
 });
 
 // Create directories synchronously at startup
-if (!fsSync.existsSync('uploads')) fsSync.mkdirSync('uploads');
-if (!fsSync.existsSync('temp')) fsSync.mkdirSync('temp');
-if (!fsSync.existsSync('public')) fsSync.mkdirSync('public');
 
 // ---------- Helper: extract 1 frame per second ----------
 async function extractFrames(videoPath) {
   return new Promise((resolve, reject) => {
-    const frameDir = path.join('temp', `frames_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+    const frameDir = path.join('/tmp', `frames_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
     
     try {
       fsSync.mkdirSync(frameDir, { recursive: true });
@@ -101,7 +98,7 @@ async function extractFrames(videoPath) {
 
 // ---------- Helper: process image file ----------
 async function processImage(imagePath) {
-  const frameDir = path.join('temp', `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const frameDir = path.join('/tmp', `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   fsSync.mkdirSync(frameDir, { recursive: true });
   
   // Copy image to temp directory
@@ -187,14 +184,17 @@ async function cleanupFiles(filePaths, directories) {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+import { randomUUID } from 'crypto';
 
 app.post('/analyze', upload.single('video'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, error: 'No file uploaded' });
   }
 
-  const filePath = req.file.path;
-  const mode = req.body.mode || 'scan'; // 'scan' or 'add'
+  const tmpPath = `/tmp/${randomUUID()}`;
+  await fs.writeFile(tmpPath, req.file.buffer);
+  const filePath = tmpPath;
+    const mode = req.body.mode || 'scan'; // 'scan' or 'add'
   let tempDirToDelete = null;
 
   try {
