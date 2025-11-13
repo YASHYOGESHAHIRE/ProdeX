@@ -9,6 +9,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { createCanvas, loadImage } from 'canvas';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+app.use(express.static('public'));
 
 // ES Module equivalents for __dirname
 const __filename = fileURLToPath(import.meta.url);
