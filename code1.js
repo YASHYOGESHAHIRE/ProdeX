@@ -322,17 +322,23 @@ List EVERY DISTINCT product/brand/item you see in the attached collage.
   }
 });
 
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
-  res.status(500).json({ 
-    success: false, 
-    error: err.message 
+  res.status(500).json({
+    success: false,
+    error: err.message
   });
 });
 
-// ---------- Start ----------
-app.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
-  console.log(`📁 Make sure index.html is in the 'public' folder`);
-});
+// ✅ Export the Express app for Vercel (DO NOT listen)
+export default app;
+
+// ✅ Optional: still allow local development
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`✅ Local server running at http://localhost:${PORT}`);
+    console.log(`📁 Make sure index.html is in the 'public' folder`);
+  });
+}
