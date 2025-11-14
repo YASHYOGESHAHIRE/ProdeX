@@ -102,9 +102,9 @@
       background: #0066ff;
       color: white;
       border: none;
-      padding: 12px 30px;
+      padding: 12px 24px;
       border-radius: 6px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       transition: background 0.3s;
@@ -115,6 +115,19 @@
     
     .btn-success { background: #00c853; }
     .btn-success:hover { background: #00a043; }
+    
+    .btn-purple { background: #9c27b0; }
+    .btn-purple:hover { background: #7b1fa2; }
+    
+    .btn-pink { background: #e91e63; }
+    .btn-pink:hover { background: #c2185b; }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
     
     .file-input {
       display: none;
@@ -252,6 +265,108 @@
     .btn-edit:hover {
       background: #1976d2;
     }
+    
+    /* Camera Modal Styles */
+    .camera-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .camera-modal.active {
+      display: flex;
+    }
+    
+    .camera-content {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 90%;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    
+    .camera-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .camera-header h3 {
+      font-size: 20px;
+      color: #333;
+    }
+    
+    .close-btn {
+      background: #ff3d00;
+      color: white;
+      border: none;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    
+    .close-btn:hover {
+      background: #dd2c00;
+    }
+    
+    .camera-video {
+      width: 100%;
+      max-width: 640px;
+      border-radius: 8px;
+      background: #000;
+      display: block;
+      margin: 0 auto;
+    }
+    
+    .camera-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .recording-indicator {
+      display: none;
+      margin-left: 15px;
+      color: #e91e63;
+      font-weight: bold;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .recording-indicator.active {
+      display: flex;
+    }
+    
+    .recording-dot {
+      width: 12px;
+      height: 12px;
+      background: #e91e63;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
   </style>
 </head>
 <body>
@@ -268,7 +383,11 @@
         <div class="upload-zone" id="scanUploadZone">
           <div class="upload-icon">📹</div>
           <div class="upload-text">Click or drag video/image here</div>
-          <button class="btn" id="scanBtn">Scan & Replace</button>
+          <div class="button-group">
+            <button class="btn" id="scanBtn">📁 Upload File</button>
+            <button class="btn btn-purple" id="scanCameraBtn">📷 Take Photo</button>
+            <button class="btn btn-pink" id="scanVideoBtn">🎥 Record Video</button>
+          </div>
           <input type="file" class="file-input" id="scanInput" accept="video/*,image/*">
           <div class="file-name" id="scanFileName"></div>
         </div>
@@ -283,7 +402,11 @@
         <div class="upload-zone" id="addUploadZone">
           <div class="upload-icon">📸</div>
           <div class="upload-text">Click or drag video/image here</div>
-          <button class="btn btn-success" id="addBtn">Add Items</button>
+          <div class="button-group">
+            <button class="btn btn-success" id="addBtn">📁 Upload File</button>
+            <button class="btn btn-success btn-purple" id="addCameraBtn">📷 Take Photo</button>
+            <button class="btn btn-success btn-pink" id="addVideoBtn">🎥 Record Video</button>
+          </div>
           <input type="file" class="file-input" id="addInput" accept="video/*,image/*">
           <div class="file-name" id="addFileName"></div>
         </div>
@@ -309,26 +432,94 @@
     </div>
   </div>
   
+  <!-- Camera Modals -->
+  <div class="camera-modal" id="scanCameraModal">
+    <div class="camera-content">
+      <div class="camera-header">
+        <h3 id="scanCameraTitle">Take Photo</h3>
+        <button class="close-btn" id="scanCloseCamera">✕</button>
+      </div>
+      <video class="camera-video" id="scanCameraVideo" autoplay playsinline></video>
+      <canvas id="scanCameraCanvas" style="display: none;"></canvas>
+      <div class="camera-controls">
+        <button class="btn" id="scanCaptureBtn">📸 Capture</button>
+        <button class="btn btn-pink" id="scanStartRecordBtn">⏺ Start Recording</button>
+        <button class="btn" id="scanStopRecordBtn" style="background: #ff3d00; display: none;">⏹ Stop Recording</button>
+        <div class="recording-indicator" id="scanRecordingTime">
+          <div class="recording-dot"></div>
+          <span id="scanTimeDisplay">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="camera-modal" id="addCameraModal">
+    <div class="camera-content">
+      <div class="camera-header">
+        <h3 id="addCameraTitle">Take Photo</h3>
+        <button class="close-btn" id="addCloseCamera">✕</button>
+      </div>
+      <video class="camera-video" id="addCameraVideo" autoplay playsinline></video>
+      <canvas id="addCameraCanvas" style="display: none;"></canvas>
+      <div class="camera-controls">
+        <button class="btn" id="addCaptureBtn">📸 Capture</button>
+        <button class="btn btn-pink" id="addStartRecordBtn">⏺ Start Recording</button>
+        <button class="btn" id="addStopRecordBtn" style="background: #ff3d00; display: none;">⏹ Stop Recording</button>
+        <div class="recording-indicator" id="addRecordingTime">
+          <div class="recording-dot"></div>
+          <span id="addTimeDisplay">0:00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
   <script>
     let inventory = [];
+    let currentStream = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recordingInterval = null;
+    let recordingSeconds = 0;
     
     // Setup upload zones
-    setupUploadZone('scanUploadZone', 'scanInput', 'scanBtn', 'scanFileName', 'scanPreview', 'scanPreviewImg', handleScan);
-    setupUploadZone('addUploadZone', 'addInput', 'addBtn', 'addFileName', 'addPreview', 'addPreviewImg', handleAdd);
+    setupUploadZone('scan');
+    setupUploadZone('add');
     
-    function setupUploadZone(zoneId, inputId, btnId, fileNameId, previewId, previewImgId, handler) {
-      const zone = document.getElementById(zoneId);
-      const input = document.getElementById(inputId);
-      const btn = document.getElementById(btnId);
-      const fileName = document.getElementById(fileNameId);
-      const preview = document.getElementById(previewId);
-      const previewImg = document.getElementById(previewImgId);
+    function setupUploadZone(prefix) {
+      const zone = document.getElementById(`${prefix}UploadZone`);
+      const input = document.getElementById(`${prefix}Input`);
+      const btn = document.getElementById(`${prefix}Btn`);
+      const cameraBtn = document.getElementById(`${prefix}CameraBtn`);
+      const videoBtn = document.getElementById(`${prefix}VideoBtn`);
+      const fileName = document.getElementById(`${prefix}FileName`);
+      const preview = document.getElementById(`${prefix}Preview`);
+      const previewImg = document.getElementById(`${prefix}PreviewImg`);
       
-      zone.addEventListener('click', () => input.click());
+      const handler = prefix === 'scan' ? handleScan : handleAdd;
+      
+      zone.addEventListener('click', (e) => {
+        if (!e.target.closest('button')) {
+          input.click();
+        }
+      });
+      
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (input.files.length > 0) handler(input.files[0], btn, preview, previewImg);
-        else input.click();
+        if (input.files.length > 0) {
+          handler(input.files[0], btn, preview, previewImg);
+        } else {
+          input.click();
+        }
+      });
+      
+      cameraBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCamera(prefix, 'photo');
+      });
+      
+      videoBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openCamera(prefix, 'video');
       });
       
       input.addEventListener('change', (e) => {
@@ -336,7 +527,6 @@
           const file = e.target.files[0];
           fileName.textContent = file.name;
           fileName.style.display = 'block';
-          btn.textContent = btn.classList.contains('btn-success') ? 'Add Items' : 'Scan & Replace';
         }
       });
       
@@ -358,6 +548,175 @@
           fileName.style.display = 'block';
         }
       });
+      
+      // Setup camera modal controls
+      setupCameraControls(prefix);
+    }
+    
+    function setupCameraControls(prefix) {
+      const modal = document.getElementById(`${prefix}CameraModal`);
+      const closeBtn = document.getElementById(`${prefix}CloseCamera`);
+      const captureBtn = document.getElementById(`${prefix}CaptureBtn`);
+      const startRecordBtn = document.getElementById(`${prefix}StartRecordBtn`);
+      const stopRecordBtn = document.getElementById(`${prefix}StopRecordBtn`);
+      const video = document.getElementById(`${prefix}CameraVideo`);
+      const canvas = document.getElementById(`${prefix}CameraCanvas`);
+      const preview = document.getElementById(`${prefix}Preview`);
+      const previewImg = document.getElementById(`${prefix}PreviewImg`);
+      const fileName = document.getElementById(`${prefix}FileName`);
+      
+      closeBtn.addEventListener('click', () => closeCamera(prefix));
+      
+      captureBtn.addEventListener('click', async () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        canvas.toBlob(async (blob) => {
+          const file = new File([blob], 'camera-photo.jpg', { type: 'image/jpeg' });
+          closeCamera(prefix);
+          fileName.textContent = 'camera-photo.jpg';
+          fileName.style.display = 'block';
+          
+          const btn = document.getElementById(`${prefix}Btn`);
+          const handler = prefix === 'scan' ? handleScan : handleAdd;
+          await handler(file, btn, preview, previewImg);
+        }, 'image/jpeg', 0.95);
+      });
+      
+      startRecordBtn.addEventListener('click', () => startRecording(prefix));
+      stopRecordBtn.addEventListener('click', () => stopRecording(prefix));
+    }
+    
+    async function openCamera(prefix, mode) {
+      const modal = document.getElementById(`${prefix}CameraModal`);
+      const video = document.getElementById(`${prefix}CameraVideo`);
+      const title = document.getElementById(`${prefix}CameraTitle`);
+      const captureBtn = document.getElementById(`${prefix}CaptureBtn`);
+      const startRecordBtn = document.getElementById(`${prefix}StartRecordBtn`);
+      const stopRecordBtn = document.getElementById(`${prefix}StopRecordBtn`);
+      const recordingTime = document.getElementById(`${prefix}RecordingTime`);
+      
+      try {
+        currentStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' }, 
+          audio: mode === 'video' 
+        });
+        video.srcObject = currentStream;
+        modal.classList.add('active');
+        
+        if (mode === 'photo') {
+          title.textContent = 'Take Photo';
+          captureBtn.style.display = 'inline-block';
+          startRecordBtn.style.display = 'none';
+          stopRecordBtn.style.display = 'none';
+          recordingTime.classList.remove('active');
+        } else {
+          title.textContent = 'Record Video';
+          captureBtn.style.display = 'none';
+          startRecordBtn.style.display = 'inline-block';
+          stopRecordBtn.style.display = 'none';
+          recordingTime.classList.remove('active');
+        }
+      } catch (error) {
+        alert('Could not access camera: ' + error.message);
+      }
+    }
+    
+    function closeCamera(prefix) {
+      const modal = document.getElementById(`${prefix}CameraModal`);
+      modal.classList.remove('active');
+      
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+        currentStream = null;
+      }
+      
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      if (recordingInterval) {
+        clearInterval(recordingInterval);
+        recordingInterval = null;
+      }
+      
+      recordedChunks = [];
+      recordingSeconds = 0;
+    }
+    
+    function startRecording(prefix) {
+      const startBtn = document.getElementById(`${prefix}StartRecordBtn`);
+      const stopBtn = document.getElementById(`${prefix}StopRecordBtn`);
+      const recordingTime = document.getElementById(`${prefix}RecordingTime`);
+      const timeDisplay = document.getElementById(`${prefix}TimeDisplay`);
+      
+      recordedChunks = [];
+      recordingSeconds = 0;
+      
+      try {
+        mediaRecorder = new MediaRecorder(currentStream, {
+          mimeType: 'video/webm;codecs=vp8,opus'
+        });
+      } catch (e) {
+        // Fallback for browsers that don't support the specified codec
+        mediaRecorder = new MediaRecorder(currentStream);
+      }
+      
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunks.push(event.data);
+        }
+      };
+      
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const file = new File([blob], 'camera-video.webm', { type: 'video/webm' });
+        
+        closeCamera(prefix);
+        
+        const fileName = document.getElementById(`${prefix}FileName`);
+        fileName.textContent = 'camera-video.webm';
+        fileName.style.display = 'block';
+        
+        const btn = document.getElementById(`${prefix}Btn`);
+        const preview = document.getElementById(`${prefix}Preview`);
+        const previewImg = document.getElementById(`${prefix}PreviewImg`);
+        const handler = prefix === 'scan' ? handleScan : handleAdd;
+        await handler(file, btn, preview, previewImg);
+      };
+      
+      mediaRecorder.start();
+      startBtn.style.display = 'none';
+      stopBtn.style.display = 'inline-block';
+      recordingTime.classList.add('active');
+      
+      recordingInterval = setInterval(() => {
+        recordingSeconds++;
+        const mins = Math.floor(recordingSeconds / 60);
+        const secs = recordingSeconds % 60;
+        timeDisplay.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+    
+    function stopRecording(prefix) {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+      
+      if (recordingInterval) {
+        clearInterval(recordingInterval);
+        recordingInterval = null;
+      }
+      
+      const startBtn = document.getElementById(`${prefix}StartRecordBtn`);
+      const stopBtn = document.getElementById(`${prefix}StopRecordBtn`);
+      const recordingTime = document.getElementById(`${prefix}RecordingTime`);
+      
+      startBtn.style.display = 'inline-block';
+      stopBtn.style.display = 'none';
+      recordingTime.classList.remove('active');
     }
     
     async function handleScan(file, btn, preview, previewImg) {

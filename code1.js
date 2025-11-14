@@ -9,7 +9,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { createCanvas, loadImage } from 'canvas';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-
+import os from 'os';
 // ES Module equivalents for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -63,8 +63,7 @@ const upload = multer({
 // ---------- Helper: extract 1 frame per second ----------
 async function extractFrames(videoPath) {
   return new Promise((resolve, reject) => {
-    const frameDir = path.join('/tmp', `frames_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-    
+    const frameDir = path.join(os.tmpdir(), `frames_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);    
     try {
       fsSync.mkdirSync(frameDir, { recursive: true });
     } catch (err) {
@@ -98,8 +97,7 @@ async function extractFrames(videoPath) {
 
 // ---------- Helper: process image file ----------
 async function processImage(imagePath) {
-  const frameDir = path.join('/tmp', `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-  fsSync.mkdirSync(frameDir, { recursive: true });
+  const frameDir = path.join(os.tmpdir(), `image_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);  fsSync.mkdirSync(frameDir, { recursive: true });
   
   // Copy image to temp directory
   const destPath = path.join(frameDir, 'frame_0001.png');
@@ -191,65 +189,64 @@ app.post('/analyze', upload.single('video'), async (req, res) => {
     return res.status(400).json({ success: false, error: 'No file uploaded' });
   }
 
-  const tmpPath = `/tmp/${randomUUID()}`;
-  await fs.writeFile(tmpPath, req.file.buffer);
-  const filePath = tmpPath;
-    const mode = req.body.mode || 'scan'; // 'scan' or 'add'
+  // Create safe temp file path (works on Windows + Vercel + Linux)
+  const filePath = path.join(os.tmpdir(), `${randomUUID()}${path.extname(req.file.originalname) || '.tmp'}`);
+  
   let tempDirToDelete = null;
 
   try {
-    console.log(`Processing ${req.file.mimetype}: ${req.file.originalname}`);
+    // Save uploaded file to temp location
+    fsSync.mkdirSync(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, req.file.buffer);
+
+    // THIS LINE WAS YOUR BUG — NOW SAFE & INSIDE try {}
+    const mode = req.body?.mode || 'scan';  // 'scan' or 'add'
+
+    console.log(`Processing ${req.file.mimetype} | Mode: ${mode} | File: ${req.file.originalname}`);
 
     let frames, frameDir;
-    
-    // Check if it's an image or video
+
+    // Process image or video
     if (req.file.mimetype.startsWith('image/')) {
       ({ frames, frameDir } = await processImage(filePath));
-      console.log(`Processed image`);
+      console.log('Image processed → 1 frame');
     } else {
       ({ frames, frameDir } = await extractFrames(filePath));
-      console.log(`Extracted ${frames.length} frames from video`);
+      console.log(`Video processed → ${frames.length} frames extracted`);
     }
-    
+
     tempDirToDelete = frameDir;
 
-    // Build collage
+    // Create collage preview
     const collageBuffer = await collageFrames(frames);
-    const mimeType = 'image/jpeg';
-    const base64 = collageBuffer.toString('base64');
-    console.log('Collage created successfully');
+    const collageBase64 = collageBuffer.toString('base64');
 
-    // ---------- AI CALL (Gemini → Groq fallback) ----------
+    // AI Vision Analysis
     let description = '';
-    let usedModel = 'gemini';
 
     try {
-      // ----- GEMINI -----
       const prompt = `You are a product-recognition assistant. 
 Look at this collage of video/image frames and list EVERY DISTINCT product, brand, or item you can identify.
 
 Rules:
-- List one product per line
+- One product per line
 - Include brand names when visible
-- Be specific (e.g., "iPhone 15" not just "phone")
+- Be specific (e.g., "Coca-Cola 330ml", "iPhone 15 Pro")
 - Only list products you can clearly see
-- No explanations or extra text
+- No explanations, no extra text
 
 Products:`;
 
-      const imagePart = {
-        inlineData: { data: base64, mimeType },
-      };
+      const result = await model.generateContent([
+        prompt,
+        { inlineData: { data: collageBase64, mimeType: 'image/jpeg' } }
+      ]);
 
-      const result = await model.generateContent([prompt, imagePart]);
-      const response = await result.response;
-      description = response.text().trim();
+      description = result.response.text().trim();
       console.log('Gemini analysis complete');
     } catch (geminiErr) {
-      console.warn('Gemini failed, falling back to Groq Llama-Vision:', geminiErr.message);
-      usedModel = 'groq-llama-vision';
-
-      // ----- GROQ FALLBACK -----
+      console.warn('Gemini failed, trying Groq fallback...');
+      
       if (!process.env.GROQ_API_KEY) {
         throw new Error('Gemini failed and GROQ_API_KEY is missing');
       }
@@ -258,70 +255,55 @@ Products:`;
       const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
       const chatCompletion = await groq.chat.completions.create({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',   // <-- latest vision model (as of Nov 2025)
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: `You are a product-recognition assistant. 
-List EVERY DISTINCT product/brand/item you see in the attached collage.
-- One per line
-- Be specific (e.g., "Coca-Cola Zero 330ml")
-- No extra text` },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${base64}`
-                }
-              }
-            ]
-          }
-        ],
+        model: 'llama-3.2-90b-vision-preview',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: 'List every distinct product you see. One per line. Be specific. No extra text.' },
+            { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${collageBase64}` } }
+          ]
+        }],
         temperature: 0.2,
         max_tokens: 1024
       });
 
-      description = chatCompletion.choices[0]?.message?.content?.trim() ?? '';
-      console.log('Groq Llama-Vision analysis complete');
+      description = chatCompletion.choices[0]?.message?.content?.trim() || '';
+      console.log('Groq fallback succeeded');
     }
 
-
     // Parse products
-    const productList = description.split('\n')
-      .filter(line => line.trim().length > 0)
-      .map(line => line.trim().replace(/^[-•*]\s*/, ''))
-      .filter(line => line.length > 0);
+    const productList = description
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => line.replace(/^[-•*]\s*/, ''));
 
-    // Format products for inventory
     const products = productList.map(name => ({
-      name: name,
+      name,
       price: null,
       stock: 1,
       added: new Date().toISOString()
     }));
 
+    // SUCCESS RESPONSE
     res.json({
       success: true,
-      products: products,
-      collageBase64: base64,
-      mode: mode
+      products,
+      collageBase64,
+      mode
     });
 
   } catch (err) {
-    console.error('Analysis error:', err);
-    res.status(500).json({ 
-      success: false, 
-      error: err.message 
+    console.error('Analysis failed:', err.message);
+    res.status(500).json({
+      success: false,
+      error: err.message || 'Processing failed'
     });
   } finally {
-    // Cleanup
-    await cleanupFiles(
-      [filePath],
-      tempDirToDelete ? [tempDirToDelete] : []
-    );
+    // Always clean up temp files
+    await cleanupFiles([filePath], tempDirToDelete ? [tempDirToDelete] : []);
   }
 });
-
 
 // Error handling middleware
 app.use((err, req, res, next) => {
