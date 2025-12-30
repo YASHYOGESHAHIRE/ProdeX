@@ -1,51 +1,187 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>ProdeX – Choose Role</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: { primary: '#2563eb', 'primary-dark': '#1d4ed8' },
-          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
-        },
-      },
-    }
-  </script>
-  <link href="https://rsms.me/inter/inter.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalHub | ProdeX Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Geist', 'system-ui', 'sans-serif'],
+                    },
+                    colors: {
+                        background: '#000000',
+                        foreground: '#ffffff',
+                        muted: '#888888',
+                        accent: '#ffffff',
+                        border: 'rgba(255, 255, 255, 0.1)',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.8s ease-out forwards',
+                        'slide-up': 'slideUp 0.8s ease-out forwards',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+    <style type="text/css">
+        body {
+            background-color: #000;
+            color: #fff;
+            -webkit-font-smoothing: antialiased;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+        }
+        .grid-lines {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .glow {
+            position: absolute;
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            pointer-events: none;
+        }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-primary to-primary-dark min-h-screen flex items-center justify-center p-4">
+<body class="font-sans overflow-x-hidden">
+    <!-- Grid Background -->
+    <div class="fixed inset-0 grid-lines pointer-events-none"></div>
+    <div class="glow top-[-100px] left-[-100px]"></div>
+    <div class="glow bottom-[-100px] right-[-100px]"></div>
 
-  <div class="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
-    <div class="mb-8">
-      <div class="mx-auto w-20 h-20 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-white text-3xl font-bold">
-        LH
-      </div>
-      <h1 class="mt-4 text-3xl font-bold text-gray-800">LocalHub</h1>
-      <p class="mt-2 text-gray-600">Instant product discovery & inventory</p>
-    </div>
+    <!-- Navigation -->
+    <nav class="relative z-50 flex items-center justify-between px-6 py-8 md:px-12">
+        <div class="flex items-center gap-2 group cursor-pointer">
+            <div class="w-8 h-8 bg-white flex items-center justify-center rounded-sm">
+                <span class="text-black font-black text-xs">LH</span>
+            </div>
+            <span class="text-xl font-bold tracking-tighter uppercase">LocalHub</span>
+        </div>
+        <div class="hidden md:flex items-center gap-8 text-sm font-medium text-muted">
+            <a href="#" class="hover:text-white transition-colors">Products</a>
+            <a href="#" class="hover:text-white transition-colors">Enterprise</a>
+            <a href="#" class="hover:text-white transition-colors">Intelligence</a>
+            <a href="#" class="hover:text-white transition-colors">Contact</a>
+        </div>
+        <button class="text-xs font-bold px-4 py-2 border border-white hover:bg-white hover:text-black transition-all rounded-full uppercase tracking-widest">
+            Login
+        </button>
+    </nav>
 
-    <div class="space-y-4">
-      <!-- SHOP OWNER -->
-      <a href="/owner.html"
-         class="block w-full py-4 px-6 bg-primary hover:bg-primary-dark text-white font-semibold rounded-xl transition transform hover:scale-105">
-        I am a Shop Owner
-      </a>
+    <!-- Hero Section -->
+    <main class="relative z-10 px-6 py-12 md:px-12 md:py-24 max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div class="space-y-8 animate-slide-up">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-widest text-muted">
+                    <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                    Live Dashboard Ready
+                </div>
+                <h1 class="text-6xl md:text-8xl font-bold leading-[0.9] tracking-tighter">
+                    Local retail. <br/>
+                    <span class="text-muted">Global intelligence.</span>
+                </h1>
+                <p class="text-lg md:text-xl text-muted max-w-lg leading-relaxed">
+                    The complete platform for hyper-local product discovery and real-time inventory synchronization. Securely scale your retail footprint with ProdeX Intelligence.
+                </p>
+                <div class="flex flex-wrap gap-4 pt-4">
+                    <a href="/owner.html" class="px-8 py-4 bg-white text-black font-bold rounded-sm hover:bg-gray-200 transition-all flex items-center gap-2">
+                        Shop Owner Portal
+                        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8.14645 3.14645C8.34171 2.95118 8.65829 2.95118 8.85355 3.14645L12.8536 7.14645C13.0488 7.34171 13.0488 7.65829 12.8536 7.85355L8.85355 11.8536C8.65829 12.0488 8.34171 12.0488 8.14645 11.8536C7.95118 11.6583 7.95118 11.3417 8.14645 11.1464L11.2929 8H2.5C2.22386 8 2 7.77614 2 7.5C2 7.22386 2.22386 7 2.5 7H11.2929L8.14645 3.85355C7.95118 3.65829 7.95118 3.34171 8.14645 3.14645Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                    </a>
+                    <a href="/search1.html" class="px-8 py-4 border border-white/20 text-white font-bold rounded-sm hover:bg-white/10 transition-all">
+                        Buyer Search Engine
+                    </a>
+                </div>
+            </div>
 
-      <!-- BUYER -->
-      <a href="/search1.html"
-         class="block w-full py-4 px-6 border-2 border-primary text-primary hover:bg-primary hover:text-white font-semibold rounded-xl transition transform hover:scale-105">
-        I am a Buyer
-      </a>
-    </div>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-2 gap-4 animate-fade-in" style="animation-delay: 0.2s">
+                <div class="glass-card p-6 rounded-sm">
+                    <div class="text-4xl font-bold mb-2">25ms</div>
+                    <div class="text-xs uppercase tracking-widest text-muted font-bold">Latency</div>
+                    <p class="text-[10px] text-muted mt-4 font-medium">Powered by Groq LPU™ technology for instant visual search.</p>
+                </div>
+                <div class="glass-card p-6 rounded-sm">
+                    <div class="text-4xl font-bold mb-2">99.9%</div>
+                    <div class="text-xs uppercase tracking-widest text-muted font-bold">Uptime</div>
+                    <p class="text-[10px] text-muted mt-4 font-medium">Enterprise-grade reliability for 24/7 store management.</p>
+                </div>
+                <div class="glass-card p-6 rounded-sm">
+                    <div class="text-4xl font-bold mb-2">12k+</div>
+                    <div class="text-xs uppercase tracking-widest text-muted font-bold">Stores</div>
+                    <p class="text-[10px] text-muted mt-4 font-medium">A growing network of connected local retailers worldwide.</p>
+                </div>
+                <div class="glass-card p-6 rounded-sm">
+                    <div class="text-4xl font-bold mb-2">0ms</div>
+                    <div class="text-xs uppercase tracking-widest text-muted font-bold">Sync Lag</div>
+                    <p class="text-[10px] text-muted mt-4 font-medium">Real-time inventory updates across all platforms.</p>
+                </div>
+            </div>
+        </div>
 
-    <p class="mt-8 text-xs text-gray-500">
-      Powered by Gemini + Groq Vision • Built with Express & Tailwind
-    </p>
-  </div>
+        <!-- Secondary Info -->
+        <div class="mt-32 pt-12 border-t border-white/10 grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest mb-4">Visionary Search</h3>
+                <p class="text-muted text-sm leading-relaxed">Gemini + Groq Vision integration allows customers to find products simply by snapping a photo of what they need.</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest mb-4">Tailored Experience</h3>
+                <p class="text-muted text-sm leading-relaxed">Whether you're a boutique owner or a frequent buyer, LocalHub provides tools designed for your specific workflow.</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-bold uppercase tracking-widest mb-4">Local Impact</h3>
+                <p class="text-muted text-sm leading-relaxed">Strengthening local economies by bridging the gap between physical storefronts and digital shoppers.</p>
+            </div>
+        </div>
+    </main>
 
+    <!-- Footer -->
+    <footer class="relative z-10 px-6 py-12 md:px-12 mt-24 border-t border-white/5 bg-black">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="flex items-center gap-2 opacity-50">
+                <div class="w-6 h-6 bg-white flex items-center justify-center rounded-sm">
+                    <span class="text-black font-black text-[10px]">LH</span>
+                </div>
+                <span class="text-sm font-bold tracking-tighter uppercase">LocalHub</span>
+            </div>
+            <p class="text-[10px] font-medium text-muted uppercase tracking-[0.2em]">
+                Built with Express & Tailwind • Powered by Gemini + Groq Vision
+            </p>
+            <div class="flex gap-6 text-[10px] font-bold uppercase tracking-widest text-muted">
+                <a href="#" class="hover:text-white">Privacy</a>
+                <a href="#" class="hover:text-white">Terms</a>
+                <a href="#" class="hover:text-white">© 2025</a>
+            </div>
+        </div>
+    </footer>
 </body>
 </html>

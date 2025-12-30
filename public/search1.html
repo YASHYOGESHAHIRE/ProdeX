@@ -1,347 +1,245 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Find products in nearby stores instantly. Real-time stock, distance, and directions."/>
-  <title>LocalHub – Find Products Nearby</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>Shopping Cart</text></svg>">
-
-  <!-- Leaflet CSS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-  <!-- Tailwind CSS (Production CDN) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            primary: '#2563eb',
-            'primary-dark': '#1d4ed8',
-          },
-          fontFamily: {
-            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
-          },
-        },
-      },
-    }
-  </script>
-  <link href="https://rsms.me/inter/inter.css" rel="stylesheet">
-  <style>
-    .loading-spinner {
-      border: 3px solid #f3f4f6;
-      border-top: 3px solid #2563eb;
-      border-radius: 50%;
-      width: 20px;
-      height: 20px;
-      animation: spin 1s linear infinite;
-      display: inline-block;
-      margin-right: 8px;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    .map-popup-content { font-family: inherit; }
-  </style>
-</head>
-<body class="bg-gray-50 text-gray-900 min-h-screen">
-
-  <!-- Hero Header -->
-  <header class="bg-white shadow-sm border-b border-gray-200">
-    <div class="max-w-4xl mx-auto px-4 py-5 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-white font-bold text-lg">LH</div>
-        <h1 class="text-2xl font-bold text-gray-800">LocalHub</h1>
-      </div>
-      <p class="text-sm text-gray-500 hidden sm:block">Find products in stores near you</p>
-    </div>
-  </header>
-
-  <main class="max-w-4xl mx-auto px-4 py-8">
-
-    <!-- Search Section -->
-    <div class="bg-white rounded-2xl shadow-sm p-6 mb-8 border border-gray-200">
-      <div class="flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          id="query"
-          placeholder="Search for Sony WH-1000XM5, Dyson Airwrap, MacBook Pro M3..."
-          class="flex-1 px-5 py-3 text-lg border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
-          autocomplete="off"
-        />
-        <button
-          id="searchBtn"
-          class="px-8 py-3 bg-primary hover:bg-primary-dark text-white font-medium rounded-xl transition flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          <span id="searchText">Search</span>
-        </button>
-      </div>
-
-      <!-- Location Status -->
-      <p id="locStatus" class="mt-4 text-sm text-gray-600 flex items-center">
-        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
-        <span>Getting your location…</span>
-      </p>
-    </div>
-
-    <!-- Results -->
-    <div id="results" class="space-y-4"></div>
-
-    <!-- Empty State -->
-    <div id="emptyState" class="hidden text-center py-12">
-      <div class="bg-gray-100 w-24 h-24 rounded-full mx-auto mb-4 flex items-center justify-center">
-        <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-      </div>
-      <p class="text-gray-600 text-lg">Search for a product to see nearby stores</p>
-    </div>
-
-    <!-- Map -->
-    <div id="map" class="h-96 rounded-2xl overflow-hidden shadow-lg mt-8 border border-gray-200" style="display: none;"></div>
-  </main>
-
-  <!-- Leaflet JS -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    let map, markerLayer;
-    let userLoc = null;
-    const statusEl = document.getElementById('locStatus');
-    const resultsEl = document.getElementById('results');
-    const mapEl = document.getElementById('map');
-    const emptyState = document.getElementById('emptyState');
-    const searchBtn = document.getElementById('searchBtn');
-    const searchText = document.getElementById('searchText');
-
-    /* ---------- HARD-CODED SHOPS (near K. K. Wagh College, Nashik) ---------- */
-    const mockShops = [
-      {
-        shop_name: "TechTrend Electronics",
-        lat: 19.9535,
-        lng: 73.8401,
-        products: [
-          { product_name: "Sony WH-1000XM5 Headphones", stock: "In Stock" },
-          { product_name: "MacBook Pro M3 16GB", stock: "Low Stock" },
-          { product_name: "iPhone 15 Pro Max", stock: "In Stock" },
-        ],
-      },
-      {
-        shop_name: "Glamour Cosmetics",
-        lat: 19.9518,
-        lng: 73.8385,
-        products: [
-          { product_name: "Kérastase Elixir Ultime Oil", stock: "In Stock" },
-          { product_name: "Dyson Airwrap Complete", stock: "Low Stock" },
-          { product_name: "Charlotte Tilbury Pillow Talk Lipstick", stock: "In Stock" },
-        ],
-      },
-      {
-        shop_name: "Royal Jewels",
-        lat: 19.9542,
-        lng: 73.8410,
-        products: [
-          { product_name: "22K Gold Temple Necklace", stock: "In Stock" },
-          { product_name: "Platinum Diamond Studs 1ct", stock: "Out of Stock" },
-          { product_name: "Polki Kundan Choker", stock: "In Stock" },
-        ],
-      },
-      {
-        shop_name: "Gadget Galaxy",
-        lat: 19.9520,
-        lng: 73.8375,
-        products: [
-          { product_name: "Sony WH-1000XM5 Headphones", stock: "Low Stock" },
-          { product_name: "Samsung Galaxy Z Fold 6", stock: "In Stock" },
-          { product_name: "Apple Watch Ultra 2", stock: "In Stock" },
-        ],
-      },
-      {
-        shop_name: "Elite Stationery & Gifts",
-        lat: 19.9530,
-        lng: 73.8398,
-        products: [
-          { product_name: "Montblanc Meisterstück Fountain Pen", stock: "In Stock" },
-          { product_name: "Moleskine Limited Edition Notebook", stock: "Low Stock" },
-          { product_name: "Lamy Safari Charcoal Rollerball", stock: "In Stock" },
-        ],
-      },
-    ];
-
-    // Get Location
-    function getLocation() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) return reject('Geolocation not supported');
-        navigator.geolocation.getCurrentPosition(
-          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => reject('Location access denied')
-        );
-      });
-    }
-
-    // Haversine distance (km)
-    function calculateDistance(lat1, lng1, lat2, lng2) {
-      const R = 6371;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLng = (lng2 - lng1) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    }
-
-    // Mock search – filters the hard-coded data
-    function performSearch(query, lat, lng) {
-      return new Promise(resolve => {
-        const q = query.toLowerCase().trim();
-        const results = [];
-
-        mockShops.forEach(shop => {
-          shop.products.forEach(p => {
-            if (p.product_name.toLowerCase().includes(q)) {
-              const item = {
-                shop_name: shop.shop_name,
-                lat: shop.lat,
-                lng: shop.lng,
-                product_name: p.product_name,
-                stock: p.stock,
-              };
-              if (lat && lng) {
-                item.distance = calculateDistance(lat, lng, shop.lat, shop.lng);
-              }
-              results.push(item);
-            }
-          });
-        });
-        resolve(results);
-      });
-    }
-
-    // Render Results
-    function renderResults(shops) {
-      if (!shops || shops.length === 0) {
-        resultsEl.innerHTML = `
-          <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
-            <p class="text-yellow-800 font-medium">No stores found</p>
-            <p class="text-yellow-600 text-sm mt-1">Try a different product or check spelling.</p>
-          </div>`;
-        hideMap();
-        return;
-      }
-
-      resultsEl.innerHTML = shops.map(s => `
-        <div class="bg-white rounded-xl shadow-sm p-5 border border-gray-200 hover:shadow-md transition">
-          <div class="flex justify-between items-start">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900">${escapeHtml(s.shop_name)}</h3>
-              <p class="text-sm text-gray-500 mt-1">${escapeHtml(s.product_name)} – <strong>${escapeHtml(s.stock)}</strong></p>
-              ${s.distance !== undefined ? `<p class="text-sm text-primary font-medium mt-2">≈ ${s.distance.toFixed(1)} km away</p>` : ''}
-            </div>
-            <button
-              onclick="getDirections(${s.lat}, ${s.lng})"
-              ${!userLoc ? 'disabled' : ''}
-              class="ml-4 px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-lg transition disabled:bg-gray-300 disabled:cursor-not-allowed"
-            >
-              Directions
-            </button>
-          </div>
-        </div>
-      `).join('');
-
-      initMap(shops);
-    }
-
-    function hideMap() {
-      mapEl.style.display = 'none';
-      if (map) map.remove();
-      map = null;
-    }
-
-    function initMap(shops) {
-      mapEl.style.display = 'block';
-      if (!map) {
-        map = L.map('map').setView([shops[0].lat, shops[0].lng], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map);
-        markerLayer = L.layerGroup().addTo(map);
-      } else {
-        markerLayer.clearLayers();
-      }
-
-      shops.forEach(s => {
-        const marker = L.marker([s.lat, s.lng])
-          .addTo(markerLayer)
-          .bindPopup(`
-            <div class="map-popup-content p-1">
-              <b class="text-base">${escapeHtml(s.shop_name)}</b><br>
-              <span class="text-sm">${escapeHtml(s.product_name)}</span><br>
-              <span class="text-sm font-medium">${escapeHtml(s.stock)}</span>
-            </div>
-          `, { autoClose: false });
-
-        marker.on('click', () => getDirections(s.lat, s.lng));
-      });
-
-      const bounds = L.latLngBounds(shops.map(s => [s.lat, s.lng]));
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
-
-    // Directions
-    function getDirections(shopLat, shopLng) {
-      if (!userLoc) return alert('Your location is needed for directions.');
-      const url = `https://www.google.com/maps/dir/?api=1&origin=${userLoc.lat},${userLoc.lng}&destination=${shopLat},${shopLng}&travelmode=driving`;
-      window.open(url, '_blank');
-    }
-
-    // Escape HTML
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    // Main Init
-    async function init() {
-      try {
-        userLoc = await getLocation();
-        statusEl.innerHTML = `<svg class="w-4 h-4 mr-1 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg><span class="text-green-700 font-medium">Location ready</span>`;
-      } catch (e) {
-        statusEl.innerHTML = `<svg class="w-4 h-4 mr-1 text-orange-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg><span class="text-orange-700">Location unavailable – distances limited</span>`;
-      }
-
-      // Search Handler
-      searchBtn.onclick = async () => {
-        const query = document.getElementById('query').value.trim();
-        if (!query) return;
-
-        searchBtn.disabled = true;
-        searchText.innerHTML = `<span class="loading-spinner"></span> Searching...`;
-        emptyState.classList.add('hidden');
-
-        try {
-          const data = await performSearch(query, userLoc?.lat, userLoc?.lng);
-          renderResults(data);
-        } catch (err) {
-          resultsEl.innerHTML = `
-            <div class="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
-              <p class="text-red-800 font-medium">Search failed</p>
-              <p class="text-red-600 text-sm mt-1">${escapeHtml(err.message)}</p>
-            </div>`;
-          hideMap();
-        } finally {
-          searchBtn.disabled = false;
-          searchText.textContent = 'Search';
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LocalHub | Find Products Nearby</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Geist', 'system-ui', 'sans-serif'],
+                        mono: ['Geist Mono', 'monospace'],
+                    },
+                    colors: {
+                        background: '#000000',
+                        foreground: '#ffffff',
+                        muted: '#888888',
+                        accent: '#2563eb',
+                        border: 'rgba(255, 255, 255, 0.1)',
+                    },
+                },
+            },
         }
-      };
+    </script>
+    <style type="text/css">
+        body { background-color: #000; color: #fff; -webkit-font-smoothing: antialiased; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .grid-lines {
+            background-image: 
+                linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        /* Invert Leaflet Map for Dark Mode */
+        .leaflet-tile { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+        .leaflet-container { background: #000 !important; }
+        .custom-popup .leaflet-popup-content-wrapper {
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+            border-radius: 8px;
+        }
+        .custom-popup .leaflet-popup-tip { background: rgba(0, 0, 0, 0.8); }
+        
+        .loading-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen">
+    <div class="fixed inset-0 grid-lines pointer-events-none"></div>
 
-      // Show empty state initially
-      emptyState.classList.remove('hidden');
-    }
+    <!-- Nav -->
+    <nav class="relative z-50 flex items-center justify-between px-6 py-6 border-b border-white/10 bg-black/50 backdrop-blur-md">
+        <a href="index.html" class="flex items-center gap-2 group">
+            <div class="w-8 h-8 bg-white flex items-center justify-center rounded-sm">
+                <span class="text-black font-black text-xs">LH</span>
+            </div>
+            <span class="text-xl font-bold tracking-tighter uppercase">LocalHub</span>
+        </a>
+        <div id="locStatus" class="text-[10px] font-bold uppercase tracking-widest text-muted flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-orange-500"></span>
+            Initializing Location...
+        </div>
+    </nav>
 
-    // Start
-    init();
-  </script>
+    <main class="relative z-10 p-6 md:p-12 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Sidebar: Search & Results -->
+        <div class="lg:col-span-5 space-y-6">
+            <div class="glass-card p-6 rounded-sm">
+                <label class="text-[10px] font-bold uppercase tracking-widest text-muted mb-4 block">Search Local Inventory</label>
+                <div class="flex gap-2">
+                    <input 
+                        type="text" 
+                        id="query" 
+                        placeholder="e.g. Sony WH-1000XM5, iPhone 15..."
+                        class="flex-1 bg-white/5 border border-white/10 rounded-sm px-4 py-3 text-sm focus:outline-none focus:border-white/30 transition-all font-medium"
+                    />
+                    <button 
+                        id="searchBtn"
+                        class="bg-white text-black px-6 py-3 rounded-sm font-bold text-sm hover:bg-gray-200 transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                        Search
+                    </button>
+                </div>
+                <div class="mt-4 flex gap-4 text-[10px] font-bold text-muted uppercase tracking-widest">
+                    <span>Active Region: <span class="text-white">Nashik, MH</span></span>
+                    <span>Range: <span class="text-white">15km</span></span>
+                </div>
+            </div>
+
+            <div id="results" class="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Initial State -->
+                <div id="emptyState" class="text-center py-24 border border-dashed border-white/10 rounded-sm">
+                    <p class="text-muted text-sm font-medium">Search for a product to find nearby stockists.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="lg:col-span-7 h-[400px] lg:h-[750px] sticky top-32">
+            <div id="map" class="w-full h-full rounded-sm border border-white/10 overflow-hidden glass-card"></div>
+        </div>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        let map, markerLayer;
+        let userLoc = null;
+        const statusEl = document.getElementById('locStatus');
+        const resultsEl = document.getElementById('results');
+        const queryInput = document.getElementById('query');
+        const searchBtn = document.getElementById('searchBtn');
+
+        // Mock Shops Data (Consistent with earlier turns)
+        const mockShops = [
+            { id: "SH-001", name: "TechTrend Electronics", lat: 19.9535, lng: 73.8401, products: [{ name: "Sony WH-1000XM5", stock: "In Stock", price: "₹24,990" }, { name: "MacBook Pro M3", stock: "Low Stock", price: "₹1,69,900" }] },
+            { id: "SH-002", name: "Glamour Cosmetics", lat: 19.9518, lng: 73.8385, products: [{ name: "Dyson Airwrap", stock: "Low Stock", price: "₹45,900" }, { name: "Kérastase Oil", stock: "In Stock", price: "₹3,200" }] },
+            { id: "SH-003", name: "Gadget Galaxy", lat: 19.9520, lng: 73.8375, products: [{ name: "Sony WH-1000XM5", stock: "Low Stock", price: "₹24,500" }, { name: "iPhone 15 Pro", stock: "In Stock", price: "₹1,34,900" }] },
+            { id: "SH-004", name: "Elite Stationery", lat: 19.9530, lng: 73.8398, products: [{ name: "Montblanc Pen", stock: "In Stock", price: "₹42,000" }] }
+        ];
+
+        // Core Functions
+        async function init() {
+            try {
+                userLoc = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(
+                    p => res({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                    e => rej(e)
+                ));
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500"></span> Location Active`;
+            } catch (e) {
+                statusEl.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Using Default Location`;
+                userLoc = { lat: 19.9535, lng: 73.8401 }; // Default to college coords
+            }
+            initMap();
+        }
+
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([userLoc.lat, userLoc.lng], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+            markerLayer = L.layerGroup().addTo(map);
+            L.control.zoom({ position: 'bottomright' }).addTo(map);
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        searchBtn.onclick = () => {
+            const q = queryInput.value.toLowerCase().trim();
+            if (!q) return;
+
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = `<span class="loading-pulse">Searching...</span>`;
+            
+            setTimeout(() => {
+                const results = [];
+                mockShops.forEach(shop => {
+                    shop.products.forEach(p => {
+                        if (p.name.toLowerCase().includes(q)) {
+                            results.push({ ...shop, activeProduct: p, distance: calculateDistance(userLoc.lat, userLoc.lng, shop.lat, shop.lng) });
+                        }
+                    });
+                });
+                renderResults(results);
+                searchBtn.disabled = false;
+                searchBtn.innerHTML = `Search`;
+            }, 800);
+        };
+
+        function renderResults(data) {
+            markerLayer.clearLayers();
+            if (data.length === 0) {
+                resultsEl.innerHTML = `<div class="text-center py-24 text-muted border border-dashed border-white/10">No items found in your region.</div>`;
+                return;
+            }
+
+            resultsEl.innerHTML = data.map(s => `
+                <div class="glass-card p-5 rounded-sm group cursor-pointer" onclick="focusShop(${s.lat}, ${s.lng}, '${s.name}')">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <span class="text-[10px] font-mono text-muted uppercase tracking-widest">${s.id}</span>
+                            <h3 class="text-lg font-bold tracking-tight">${s.name}</h3>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-white">${s.distance.toFixed(1)} km</span>
+                            <p class="text-[10px] text-muted uppercase font-bold tracking-widest">Distance</p>
+                        </div>
+                    </div>
+                    <div class="flex items-end justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-white">${s.activeProduct.name}</p>
+                            <span class="text-[10px] font-bold uppercase tracking-widest ${s.activeProduct.stock === 'In Stock' ? 'text-green-500' : 'text-orange-500'}">
+                                ${s.activeProduct.stock}
+                            </span>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-sm font-mono font-bold">${s.activeProduct.price}</p>
+                            <button onclick="window.open('https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}')" class="text-[10px] font-bold text-accent uppercase tracking-widest hover:underline mt-1">Get Directions</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            data.forEach(s => {
+                L.marker([s.lat, s.lng])
+                    .addTo(markerLayer)
+                    .bindPopup(`<div class="p-2"><strong>${s.name}</strong><br/>${s.activeProduct.name}<br/>${s.activeProduct.price}</div>`, { className: 'custom-popup' });
+            });
+
+            if (data.length > 0) {
+                const bounds = L.latLngBounds(data.map(d => [d.lat, d.lng]));
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        }
+
+        function focusShop(lat, lng, name) {
+            map.flyTo([lat, lng], 16);
+        }
+
+        init();
+    </script>
 </body>
 </html>
