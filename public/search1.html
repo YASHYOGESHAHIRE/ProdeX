@@ -131,11 +131,132 @@
 
         // Mock Shops Data (Consistent with earlier turns)
         const mockShops = [
-            { id: "SH-001", name: "TechTrend Electronics", lat: 19.9535, lng: 73.8401, products: [{ name: "Sony WH-1000XM5", stock: "In Stock", price: "₹24,990" }, { name: "MacBook Pro M3", stock: "Low Stock", price: "₹1,69,900" }] },
-            { id: "SH-002", name: "Glamour Cosmetics", lat: 19.9518, lng: 73.8385, products: [{ name: "Dyson Airwrap", stock: "Low Stock", price: "₹45,900" }, { name: "Kérastase Oil", stock: "In Stock", price: "₹3,200" }] },
-            { id: "SH-003", name: "Gadget Galaxy", lat: 19.9520, lng: 73.8375, products: [{ name: "Sony WH-1000XM5", stock: "Low Stock", price: "₹24,500" }, { name: "iPhone 15 Pro", stock: "In Stock", price: "₹1,34,900" }] },
-            { id: "SH-004", name: "Elite Stationery", lat: 19.9530, lng: 73.8398, products: [{ name: "Montblanc Pen", stock: "In Stock", price: "₹42,000" }] }
-        ];
+  {
+    id: "LN-001",
+    name: "Lonere Tech Store",
+    lat: 18.1711, lng: 73.3395,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "In Stock", price: "₹72,990" },
+      { name: "Sony WH-1000XM5", stock: "In Stock", price: "₹24,990" },
+      { name: "USB Type-C Cable", stock: "In Stock", price: "₹299" }
+    ]
+  },
+  {
+    id: "LN-002",
+    name: "Student Electronics Hub",
+    lat: 18.1698, lng: 73.3378,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "Low Stock", price: "₹71,999" },
+      { name: "Power Bank 20000mAh", stock: "In Stock", price: "₹1,699" },
+      { name: "Wireless Mouse", stock: "In Stock", price: "₹499" }
+    ]
+  },
+  {
+    id: "LN-003",
+    name: "Campus Laptop World",
+    lat: 18.1689, lng: 73.3369,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "In Stock", price: "₹73,500" },
+      { name: "Dell Inspiron 15", stock: "Low Stock", price: "₹54,990" },
+      { name: "Laptop Cooling Pad", stock: "In Stock", price: "₹899" }
+    ]
+  },
+  {
+    id: "LN-004",
+    name: "DBATU Stationery & Tech",
+    lat: 18.1704, lng: 73.3382,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "Low Stock", price: "₹72,500" },
+      { name: "Scientific Calculator (Casio fx-991)", stock: "In Stock", price: "₹1,250" },
+      { name: "Pendrive 64GB", stock: "In Stock", price: "₹650" }
+    ]
+  },
+  {
+    id: "LN-005",
+    name: "Lonere Digital Zone",
+    lat: 18.1720, lng: 73.3403,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "In Stock", price: "₹71,500" },
+      { name: "Samsung Galaxy S23", stock: "Low Stock", price: "₹69,999" },
+      { name: "Bluetooth Speaker JBL", stock: "In Stock", price: "₹3,499" }
+    ]
+  },
+
+  /* ---------- DAILY NEEDS / FOOD (same items in multiple shops) ---------- */
+
+  {
+    id: "LN-006",
+    name: "Lonere Fresh Mart",
+    lat: 18.1719, lng: 73.3411,
+    products: [
+      { name: "Maggi Noodles Pack", stock: "In Stock", price: "₹56" },
+      { name: "Amul Milk 1L", stock: "In Stock", price: "₹64" },
+      { name: "Cold Coffee", stock: "In Stock", price: "₹80" }
+    ]
+  },
+  {
+    id: "LN-007",
+    name: "Campus Cafe",
+    lat: 18.1707, lng: 73.3415,
+    products: [
+      { name: "Cold Coffee", stock: "Low Stock", price: "₹90" },
+      { name: "Maggi Noodles Pack", stock: "In Stock", price: "₹55" },
+      { name: "Veg Sandwich", stock: "In Stock", price: "₹60" }
+    ]
+  },
+
+  /* ---------- MEDICAL / GENERAL ---------- */
+
+  {
+    id: "LN-008",
+    name: "Campus Medical Store",
+    lat: 18.1685, lng: 73.3361,
+    products: [
+      { name: "Paracetamol Tablets", stock: "In Stock", price: "₹25" },
+      { name: "Digital Thermometer", stock: "In Stock", price: "₹180" },
+      { name: "Hand Sanitizer 500ml", stock: "Low Stock", price: "₹120" }
+    ]
+  },
+
+  /* ---------- MORE ELECTRONICS (REPEATED PRODUCTS) ---------- */
+
+  {
+    id: "LN-009",
+    name: "Lonere Laptop & Mobile",
+    lat: 18.1691, lng: 73.3358,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "In Stock", price: "₹72,200" },
+      { name: "iPhone 15", stock: "Low Stock", price: "₹79,900" },
+      { name: "Laptop Bag", stock: "In Stock", price: "₹1,199" }
+    ]
+  },
+  {
+    id: "LN-010",
+    name: "Student Gadget Store",
+    lat: 18.1726, lng: 73.3399,
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: "Low Stock", price: "₹73,999" },
+      { name: "USB Type-C Cable", stock: "In Stock", price: "₹279" },
+      { name: "Wireless Keyboard", stock: "In Stock", price: "₹999" }
+    ]
+  },
+
+  /* ---------- FILLER SHOPS (FOR SCALE DEMO) ---------- */
+
+  ...Array.from({ length: 20 }).map((_, i) => ({
+    id: `LN-${11 + i}`,
+    name: `Lonere Local Shop ${i + 1}`,
+    lat: 18.1675 + (i * 0.0003),
+    lng: 73.3355 + (i * 0.0004),
+    products: [
+      { name: "ASUS TUF Gaming F15 (i5, RTX 3050)", stock: i % 2 === 0 ? "In Stock" : "Low Stock", price: `₹${71500 + i * 150}` },
+      { name: "Sony WH-1000XM5", stock: "In Stock", price: `₹${24500 + i * 100}` },
+      { name: "USB Type-C Cable", stock: "In Stock", price: `₹${250 + i * 10}` }
+    ]
+  }))
+];
+
+
 
         // Core Functions
         async function init() {
